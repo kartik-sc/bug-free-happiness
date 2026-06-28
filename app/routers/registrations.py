@@ -33,7 +33,10 @@ async def create_registration(
         raise HTTPException(404, "Event not found")
     if not event.is_active:
         raise HTTPException(400, "Event is not available")
-    if datetime.now(timezone.utc) > event.registration_deadline:
+    deadline = event.registration_deadline
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > deadline:
         raise HTTPException(400, "Registration is closed")
 
     existing = await db.execute(

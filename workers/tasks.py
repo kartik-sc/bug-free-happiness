@@ -40,7 +40,7 @@ def send_ticket_email(self, registration_id: str):
         f"Hi {reg.user.name},\n\n"
         f"You're confirmed for {reg.event.name}!\n\n"
         f"Ticket number : {reg.ticket_number}\n"
-        f"Event date    : {reg.event.date}\n"
+        f"Event date    : {reg.event.start_time}\n"
         f"Venue         : {reg.event.venue}\n\n"
         f"Show your QR code at the gate. Download it from the app under 'My Registrations'.\n\n"
         f"See you there!\n"
