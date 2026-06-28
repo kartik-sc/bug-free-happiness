@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
@@ -61,7 +62,7 @@ async def checkin_stats(
     current_user: User = Depends(require_role("volunteer")),
 ):
     """Live attendance breakdown for an event."""
-    event = await db.get(Event, event_id)
+    event = await db.get(Event, UUID(event_id))
     if not event:
         raise HTTPException(404, "Event not found")
 

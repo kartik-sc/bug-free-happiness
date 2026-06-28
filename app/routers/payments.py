@@ -36,7 +36,7 @@ def verify_razorpay_signature(order_id: str, payment_id: str, signature: str) ->
 
 
 async def confirm_payment_and_generate_ticket(
-    registration_id: str, payment: Payment, db: AsyncSession
+    registration_id: UUID, payment: Payment, db: AsyncSession
 ) -> Registration:
     qr_token = secrets.token_urlsafe(32)
 
@@ -67,7 +67,7 @@ async def initiate_payment(
     current_user: User = Depends(require_role("student")),
 ):
     """Create a Razorpay order for a pending registration."""
-    reg = await db.get(Registration, str(body.registration_id))
+    reg = await db.get(Registration, body.registration_id)
     if not reg or reg.user_id != current_user.id:
         raise HTTPException(404, "Registration not found")
     if reg.status == "PAYMENT_PENDING":
@@ -77,7 +77,7 @@ async def initiate_payment(
     if reg.status != "PENDING":
         raise HTTPException(400, "Registration is not in a payable state")
 
-    event = await db.get(Event, str(reg.event_id))
+    event = await db.get(Event, reg.event_id)
 
     # Free events skip Razorpay entirely
     if event.price == 0:
@@ -89,7 +89,7 @@ async def initiate_payment(
         )
         db.add(payment)
         await db.flush()
-        confirmed_reg = await confirm_payment_and_generate_ticket(str(reg.id), payment, db)
+        confirmed_reg = await confirm_payment_and_generate_ticket(reg.id, payment, db)
         return PaymentVerifiedResponse(
             ticket_number=confirmed_reg.ticket_number,
             status="CONFIRMED",
@@ -126,7 +126,7 @@ async def verify_payment(
     current_user: User = Depends(require_role("student")),
 ):
     """Verify Razorpay signature and confirm the registration."""
-    reg = await db.get(Registration, str(body.registration_id))
+    reg = await db.get(Registration, body.registration_id)
     if not reg or reg.user_id != current_user.id:
         raise HTTPException(404, "Registration not found")
 
@@ -145,7 +145,7 @@ async def verify_payment(
 
     payment.razorpay_payment_id = body.razorpay_payment_id
     payment.razorpay_signature = body.razorpay_signature
-    confirmed_reg = await confirm_payment_and_generate_ticket(str(reg.id), payment, db)
+    confirmed_reg = await confirm_payment_and_generate_ticket(reg.id, payment, db)
 
     send_ticket_email.delay(str(confirmed_reg.id))
 
@@ -168,8 +168,10 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
         expected = hmac.new(
             settings.RAZORPAY_WEBHOOK_SECRET.encode(), body, hashlib.sha256
         ).hexdigest()
+        # Razorpay retries on non-200 responses — return 200 even for bad signatures
         if not hmac.compare_digest(expected, signature_header):
-            raise HTTPException(400, "Invalid webhook signature")
+            logger.warning("Webhook received with invalid signature — possible spoofing attempt")
+            return {"status": "ignored"}
 
         payload = json.loads(body)
         if payload.get("event") != "payment.captured":
@@ -193,7 +195,7 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         payment.webhook_event_id = event_id
         confirmed_reg = await confirm_payment_and_generate_ticket(
-            str(payment.registration_id), payment, db
+            payment.registration_id, payment, db
         )
 
         send_ticket_email.delay(str(confirmed_reg.id))

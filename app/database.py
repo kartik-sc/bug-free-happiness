@@ -3,12 +3,12 @@ from sqlalchemy.orm import declarative_base
 
 from app.config import settings
 
+_db_url = settings.DATABASE_URL
 # pool_size=10 keeps enough connections ready for concurrent requests without overwhelming Postgres
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    pool_size=10,
-    max_overflow=5,
-)
+# SQLite (used in tests) uses NullPool and doesn't accept pool_size/max_overflow
+_pool_kwargs = {} if _db_url.startswith("sqlite") else {"pool_size": 10, "max_overflow": 5}
+
+engine = create_async_engine(_db_url, **_pool_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

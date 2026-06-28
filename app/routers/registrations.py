@@ -28,7 +28,7 @@ async def create_registration(
     """Register the current student for an event."""
     event_id = body.event_id
 
-    event = await db.get(Event, str(event_id))
+    event = await db.get(Event, event_id)
     if not event:
         raise HTTPException(404, "Event not found")
     if not event.is_active:
@@ -125,7 +125,7 @@ async def get_registration(
     current_user: User = Depends(get_current_user),
 ):
     """Get a single registration. Students can only view their own."""
-    reg = await db.get(Registration, str(registration_id))
+    reg = await db.get(Registration, registration_id)
     if not reg:
         raise HTTPException(404, "Registration not found")
     if current_user.role == "student" and reg.user_id != current_user.id:
@@ -140,7 +140,7 @@ async def get_qr_code(
     current_user: User = Depends(require_role("student")),
 ):
     """Download the QR PNG for a confirmed ticket."""
-    reg = await db.get(Registration, str(registration_id))
+    reg = await db.get(Registration, registration_id)
     if not reg:
         raise HTTPException(404, "Registration not found")
     if reg.user_id != current_user.id:

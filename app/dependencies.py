@@ -1,4 +1,5 @@
 from typing import Callable
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -23,7 +24,7 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(401, "Invalid token")
 
-    user_id = payload.get("sub")
+    user_id = UUID(payload.get("sub"))
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

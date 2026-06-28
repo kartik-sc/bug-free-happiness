@@ -1,7 +1,6 @@
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import mapped_column, relationship
 
 from app.database import Base
@@ -10,7 +9,7 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    id = mapped_column(Uuid(), primary_key=True, default=uuid4)
     name = mapped_column(String(100), nullable=False)
     email = mapped_column(String(255), unique=True, nullable=False, index=True)
     phone = mapped_column(String(20), nullable=False)
@@ -25,7 +24,7 @@ class User(Base):
 class Event(Base):
     __tablename__ = "events"
 
-    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    id = mapped_column(Uuid(), primary_key=True, default=uuid4)
     name = mapped_column(String(200), nullable=False)
     description = mapped_column(Text, nullable=True)
     venue = mapped_column(String(300), nullable=True)
@@ -43,9 +42,9 @@ class Event(Base):
 class Registration(Base):
     __tablename__ = "registrations"
 
-    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
-    user_id = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    event_id = mapped_column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False, index=True)
+    id = mapped_column(Uuid(), primary_key=True, default=uuid4)
+    user_id = mapped_column(Uuid(), ForeignKey("users.id"), nullable=False, index=True)
+    event_id = mapped_column(Uuid(), ForeignKey("events.id"), nullable=False, index=True)
     status = mapped_column(String(30), nullable=False, server_default="PENDING")
     qr_token = mapped_column(String(100), unique=True, nullable=True, index=True)
     ticket_number = mapped_column(String(30), unique=True, nullable=True)
@@ -61,8 +60,8 @@ class Registration(Base):
 class Payment(Base):
     __tablename__ = "payments"
 
-    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
-    registration_id = mapped_column(UUID(as_uuid=True), ForeignKey("registrations.id"), unique=True, nullable=False)
+    id = mapped_column(Uuid(), primary_key=True, default=uuid4)
+    registration_id = mapped_column(Uuid(), ForeignKey("registrations.id"), unique=True, nullable=False)
     amount = mapped_column(Numeric(10, 2), nullable=False)
     razorpay_order_id = mapped_column(String(100), unique=True, nullable=False)
     razorpay_payment_id = mapped_column(String(100), unique=True, nullable=True)
@@ -78,10 +77,10 @@ class Payment(Base):
 class CheckIn(Base):
     __tablename__ = "checkins"
 
-    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    id = mapped_column(Uuid(), primary_key=True, default=uuid4)
     # UNIQUE here means Postgres rejects a second INSERT for the same registration — no app-level lock needed
-    registration_id = mapped_column(UUID(as_uuid=True), ForeignKey("registrations.id"), unique=True, nullable=False)
-    volunteer_id = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    registration_id = mapped_column(Uuid(), ForeignKey("registrations.id"), unique=True, nullable=False)
+    volunteer_id = mapped_column(Uuid(), ForeignKey("users.id"), nullable=False)
     gate = mapped_column(String(50), nullable=True)
     scanned_at = mapped_column(DateTime(timezone=True), server_default=func.now())
 

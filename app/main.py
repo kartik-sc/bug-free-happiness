@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,10 +19,18 @@ from app.schemas import RegisterRequest
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("TechFest API starting up")
+    yield
+
+
 app = FastAPI(
     title="TechFest Registration API",
     description="IEEE RVCE TechFest 2026 — Student registration, payments, and gate check-in.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -83,6 +92,3 @@ async def health(db: AsyncSession = Depends(get_db)):
     return {"status": "ok", "database": "connected"}
 
 
-@app.on_event("startup")
-async def startup():
-    logger.info("TechFest API starting up")
