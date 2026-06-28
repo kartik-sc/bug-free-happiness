@@ -74,7 +74,6 @@ async def my_registrations(
     result = await db.execute(
         select(Registration)
         .where(Registration.user_id == current_user.id)
-        .options(joinedload(Registration.event))
         .order_by(Registration.created_at.desc())
     )
     regs = result.scalars().all()

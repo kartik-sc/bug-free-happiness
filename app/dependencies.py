@@ -10,9 +10,6 @@ from app.config import settings
 from app.database import get_db
 from app.models import User
 
-# re-export so routers can import get_db from here too
-get_db = get_db
-
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(HTTPBearer()),

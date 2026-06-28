@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -59,7 +59,6 @@ async def create_volunteer(
     if x_admin_secret != settings.ADMIN_SECRET:
         raise HTTPException(403, "Invalid admin secret")
 
-    from sqlalchemy import select
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(400, "Email already registered")

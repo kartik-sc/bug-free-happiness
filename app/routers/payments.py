@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import get_current_user, get_db, require_role
-from app.models import Payment, Registration, User
+from app.models import Event, Payment, Registration, User
 from app.schemas import InitiatePaymentRequest, InitiatePaymentResponse, PaymentVerifiedResponse, VerifyPaymentRequest
+from workers.tasks import send_ticket_email
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ async def confirm_payment_and_generate_ticket(
 ) -> Registration:
     qr_token = secrets.token_urlsafe(32)
 
+    # Count confirmed tickets to derive a sequential number. Theoretical race at extreme concurrency
+    # would collide on the unique constraint; acceptable for this event's expected load.
     count_result = await db.execute(
         select(func.count(Registration.id)).where(Registration.status == "CONFIRMED")
     )
@@ -57,7 +60,7 @@ async def confirm_payment_and_generate_ticket(
     return reg
 
 
-@router.post("/initiate", response_model=InitiatePaymentResponse)
+@router.post("/initiate")
 async def initiate_payment(
     body: InitiatePaymentRequest,
     db: AsyncSession = Depends(get_db),
@@ -74,7 +77,6 @@ async def initiate_payment(
     if reg.status != "PENDING":
         raise HTTPException(400, "Registration is not in a payable state")
 
-    from app.models import Event
     event = await db.get(Event, str(reg.event_id))
 
     # Free events skip Razorpay entirely
@@ -145,7 +147,6 @@ async def verify_payment(
     payment.razorpay_signature = body.razorpay_signature
     confirmed_reg = await confirm_payment_and_generate_ticket(str(reg.id), payment, db)
 
-    from workers.tasks import send_ticket_email
     send_ticket_email.delay(str(confirmed_reg.id))
 
     logger.info(f"Payment confirmed for registration {reg.id}, ticket {confirmed_reg.ticket_number}")
@@ -195,7 +196,6 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
             str(payment.registration_id), payment, db
         )
 
-        from workers.tasks import send_ticket_email
         send_ticket_email.delay(str(confirmed_reg.id))
 
         logger.info(f"Webhook confirmed ticket {confirmed_reg.ticket_number} for order {order_id}")
