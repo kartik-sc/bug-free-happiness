@@ -125,6 +125,18 @@ class CheckInStats(BaseModel):
     pending: int
 
 
+# Extended view for volunteers — includes student and event info
+class VolunteerRegistrationOut(BaseModel):
+    id: UUID
+    event_id: UUID
+    event_name: str
+    student_name: str
+    status: str
+    ticket_number: str | None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- API envelope ---
 
 class APIResponse(BaseModel):
