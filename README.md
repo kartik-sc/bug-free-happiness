@@ -108,6 +108,18 @@ curl -X POST http://localhost:8000/internal/create-volunteer \
 | POST | `/internal/create-volunteer` | Admin secret | Create a volunteer account |
 | GET | `/health` | None | Health check (pings DB) |
 
+## Testing with Postman
+
+Import `postman_collection.json` into Postman. Then:
+
+1. Run **Internal / Health Check** to verify the server is up
+2. Run **Auth / Login Student** — the test script auto-captures `STUDENT_TOKEN`
+3. Run **Auth / Login Volunteer** — auto-captures `VOLUNTEER_TOKEN`
+4. Run **Events / List Events** — auto-captures `EVENT_ID`
+5. Work through the remaining folders in order
+
+The **Edge Cases** folder has pre-built requests that demonstrate constraint handling — each one is designed to return an error.
+
 ## Running Tests
 
 ```bash

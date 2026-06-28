@@ -1,0 +1,507 @@
+{
+  "info": {
+    "_postman_id": "f3a5d1b2-0c9e-4a87-b6f2-3d8e4c9a1f05",
+    "name": "TechFest Registration API",
+    "description": "IEEE RVCE TechFest 2026. Recommended flow: (1) Internal / Health Check to verify the server is up, (2) Auth / Login Student to populate STUDENT_TOKEN, (3) Auth / Login Volunteer for VOLUNTEER_TOKEN, (4) Events / List Events to populate EVENT_ID, (5) Registrations and Payments in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string",
+      "description": "Base URL for all versioned API endpoints"
+    },
+    {
+      "key": "HOST_URL",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Root URL for unversioned endpoints (health, internal)"
+    },
+    {
+      "key": "STUDENT_TOKEN",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by Login Student test script"
+    },
+    {
+      "key": "VOLUNTEER_TOKEN",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by Login Volunteer test script"
+    },
+    {
+      "key": "EVENT_ID",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by List Events test script"
+    },
+    {
+      "key": "REGISTRATION_ID",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by Create Registration test script"
+    },
+    {
+      "key": "QR_TOKEN",
+      "value": "",
+      "type": "string",
+      "description": "Set manually from the QR endpoint response (used in check-in scan)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints — register, login, token refresh, logout",
+      "item": [
+        {
+          "name": "Register Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('STUDENT_TOKEN', pm.response.json().access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Student\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"9876543210\",\n  \"college\": \"RV College of Engineering\",\n  \"password\": \"mypassword123\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/auth/register"},
+            "description": "Create a new student account. Returns access_token and user profile. The test script captures the token into STUDENT_TOKEN. Rate limited: 5 requests/min per IP."
+          }
+        },
+        {
+          "name": "Login Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('STUDENT_TOKEN', pm.response.json().access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"mypassword123\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/auth/login"},
+            "description": "Login and receive a JWT. The test script auto-saves the token to STUDENT_TOKEN. Rate limited: 10 requests/min per IP. Always returns 'Invalid credentials' for both bad email and bad password (no user enumeration)."
+          }
+        },
+        {
+          "name": "Login Volunteer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('VOLUNTEER_TOKEN', pm.response.json().access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"volunteer@techfest.com\",\n  \"password\": \"volunteer123\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/auth/login"},
+            "description": "Login as the seed volunteer (created by python seed.py). The test script saves the token to VOLUNTEER_TOKEN. Use this token for all check-in endpoints."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('STUDENT_TOKEN', pm.response.json().access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/auth/refresh"},
+            "description": "Issue a new token with a fresh 15-minute expiry. Must be called before the current token expires — there is no way to refresh an already-expired token."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/auth/logout"},
+            "description": "Stateless logout. The server validates the token but does not maintain a blacklist. The client must discard the token. JWTs expire after 15 minutes regardless."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "description": "Public event listing — no auth required",
+      "item": [
+        {
+          "name": "List Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const events = pm.response.json();",
+                  "    if (events.length > 0) {",
+                  "        pm.environment.set('EVENT_ID', events[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {"type": "noauth"},
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/events/"},
+            "description": "List all active events with capacity, registered_count, and computed spots_left. The test script captures the first event ID into EVENT_ID."
+          }
+        },
+        {
+          "name": "Get Event",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "noauth"},
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/events/{{EVENT_ID}}"},
+            "description": "Get a single event by ID. Includes spots_left = capacity - registered_count."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrations",
+      "description": "Student registration flow",
+      "item": [
+        {
+          "name": "Create Registration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('REGISTRATION_ID', pm.response.json().id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_id\": \"{{EVENT_ID}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/registrations/"},
+            "description": "Register the logged-in student for an event. Uses an atomic UPDATE ... WHERE registered_count < capacity RETURNING id to claim a seat — concurrent requests cannot oversell. Returns status PENDING. Call /payments/initiate next."
+          }
+        },
+        {
+          "name": "My Registrations",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/registrations/me"},
+            "description": "List all registrations for the logged-in student, newest first."
+          }
+        },
+        {
+          "name": "Get Registration",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/registrations/{{REGISTRATION_ID}}"},
+            "description": "Get a single registration. Students can only view their own (403 otherwise). Volunteers can view any registration."
+          }
+        },
+        {
+          "name": "Download QR Code",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/registrations/{{REGISTRATION_ID}}/qr"},
+            "description": "Download the QR PNG for this ticket. Only works when status is CONFIRMED or CHECKED_IN — returns 403 if still PENDING. The response is binary image/png, which Postman will preview automatically."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "Razorpay payment flow",
+      "item": [
+        {
+          "name": "Initiate Payment",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registration_id\": \"{{REGISTRATION_ID}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/payments/initiate"},
+            "description": "For free events (price=0): immediately confirms and returns ticket_number and status CONFIRMED. For paid events: creates a Razorpay order and returns razorpay_order_id, amount, and key_id to pass to the Razorpay JS SDK checkout."
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registration_id\": \"{{REGISTRATION_ID}}\",\n  \"razorpay_payment_id\": \"pay_REPLACE_WITH_REAL_ID\",\n  \"razorpay_order_id\": \"order_REPLACE_WITH_REAL_ID\",\n  \"razorpay_signature\": \"REPLACE_WITH_SIGNATURE_FROM_SDK\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/payments/verify"},
+            "description": "Called after the Razorpay JS SDK returns a successful payment. Replace the three razorpay_* fields with values from the SDK callback. The server verifies HMAC-SHA256(order_id|payment_id, KEY_SECRET). On success, confirms the ticket and queues a confirmation email."
+          }
+        },
+        {
+          "name": "Webhook Simulation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Razorpay-Signature", "value": "COMPUTE: hmac_sha256(RAZORPAY_WEBHOOK_SECRET, raw_body_bytes)"},
+              {"key": "X-Razorpay-Event-Id", "value": "evt_test_unique_001"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.captured\",\n  \"payload\": {\n    \"payment\": {\n      \"entity\": {\n        \"id\": \"pay_test_fake_payment\",\n        \"order_id\": \"order_test_fake_order\"\n      }\n    }\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/payments/webhook"},
+            "description": "Simulate a Razorpay payment.captured webhook. The X-Razorpay-Signature must be HMAC-SHA256(RAZORPAY_WEBHOOK_SECRET, raw_body). In test mode, use a Razorpay dashboard webhook to get a real signed payload. The server always returns HTTP 200 (errors are logged, never surfaced) to prevent Razorpay retries."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check-in",
+      "description": "Volunteer gate check-in endpoints",
+      "item": [
+        {
+          "name": "Scan QR",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{VOLUNTEER_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qr_token\": \"{{QR_TOKEN}}\",\n  \"gate\": \"Main Gate\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/checkin/scan"},
+            "description": "Volunteer scans a student's QR code to mark them as CHECKED_IN. Returns student name, ticket number, event name. A second scan of the same QR returns 409 (double-scan is prevented by a DB UNIQUE constraint on checkins.registration_id — race-safe without locks)."
+          }
+        },
+        {
+          "name": "Check-in Stats",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{VOLUNTEER_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/checkin/stats/{{EVENT_ID}}"},
+            "description": "Live attendance breakdown for an event: capacity, confirmed tickets, checked-in count, pending registrations. Single-pass aggregate query — no N+1."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases",
+      "description": "Pre-built requests that should return errors — useful for demonstrating constraint handling",
+      "item": [
+        {
+          "name": "Duplicate Registration (expect 409)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_id\": \"{{EVENT_ID}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/registrations/"},
+            "description": "Run this AFTER already registering for the same event. Expects HTTP 409 — error: 'You are already registered for this event'. The duplicate check is a SELECT before the atomic UPDATE."
+          }
+        },
+        {
+          "name": "Scan Nonexistent QR (expect 404)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{VOLUNTEER_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qr_token\": \"fake-invalid-token-12345\",\n  \"gate\": \"Main Gate\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/checkin/scan"},
+            "description": "Scan a QR token that does not exist in the database. Expects HTTP 404 — error: 'Invalid QR code'."
+          }
+        },
+        {
+          "name": "Access Other Student's Registration (expect 403/404)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [],
+            "url": {"raw": "{{BASE_URL}}/registrations/00000000-0000-0000-0000-000000000001"},
+            "description": "Student tries to access a registration that belongs to another student (using a fake UUID here). Expects HTTP 404 if the registration doesn't exist, or HTTP 403 if it exists but belongs to a different student."
+          }
+        },
+        {
+          "name": "Verify Payment Wrong Signature (expect 400)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{STUDENT_TOKEN}}", "type": "string"}]
+            },
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registration_id\": \"{{REGISTRATION_ID}}\",\n  \"razorpay_payment_id\": \"pay_tampered_123\",\n  \"razorpay_order_id\": \"order_tampered_123\",\n  \"razorpay_signature\": \"0000000000000000000000000000000000000000000000000000000000000000\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{BASE_URL}}/payments/verify"},
+            "description": "Submit a payment verification with a zeroed-out HMAC signature. Expects HTTP 400 — error: 'Invalid payment signature'. The signature check uses hmac.compare_digest to prevent timing-based attacks."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal",
+      "description": "Admin and operational endpoints",
+      "item": [
+        {
+          "name": "Create Volunteer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Admin-Secret", "value": "change-this-too"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gate Volunteer\",\n  \"email\": \"volunteer2@techfest.com\",\n  \"phone\": \"9876543211\",\n  \"college\": \"RV College of Engineering\",\n  \"password\": \"volpass123\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {"raw": "{{HOST_URL}}/internal/create-volunteer"},
+            "description": "Create a volunteer account. Requires X-Admin-Secret header matching ADMIN_SECRET in .env. Update the header value to match your .env before using. Returns 403 on wrong secret, 400 on duplicate email."
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "noauth"},
+            "header": [],
+            "url": {"raw": "{{HOST_URL}}/health"},
+            "description": "Verify the API is up and the database connection is alive. Returns {\"status\": \"ok\", \"database\": \"connected\"}. Run this first after docker-compose up."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,6 @@ from app.models import Registration
 from workers.celery_app import celery_app
 
 # Note: this task runs in a separate process, so it uses sync SQLAlchemy
-# psycopg2-binary must be in requirements.txt (add it alongside asyncpg)
 _sync_engine = create_engine(settings.DATABASE_URL.replace("+asyncpg", "+psycopg2"))
 
 logger = logging.getLogger(__name__)
